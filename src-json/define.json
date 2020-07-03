@@ -331,7 +331,7 @@
 		"name": "SourceMap",
 		"define": "source_map",
 		"doc": "Generate source map for compiled files.",
-		"platforms": ["php", "js"]
+		"platforms": ["php", "js", "lua"]
 	},
 	{
 		"name": "Jvm",

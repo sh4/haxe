@@ -25,6 +25,7 @@ open Type
 open Common
 open ExtList
 open Error
+open Sourcemaps
 
 type pos = Globals.pos
 
@@ -32,6 +33,7 @@ type ctx = {
     com : Common.context;
     buf : Buffer.t;
     packages : (string list,unit) Hashtbl.t;
+    mutable sourcemap : sourcemap_builder option;
     mutable current : tclass;
     mutable statics : (tclass * tclass_field * texpr) list;
     mutable inits : texpr list;
@@ -140,13 +142,17 @@ let temp ctx =
     ctx.id_counter <- ctx.id_counter + 1;
     "_hx_" ^ string_of_int (ctx.id_counter)
 
+let write ctx s =
+    Buffer.add_string ctx.buf s;
+    Option.may (fun smap -> smap#insert (SMStr s)) ctx.sourcemap
+
 let spr ctx s =
     ctx.separator <- false;
-    Buffer.add_string ctx.buf s
+    write ctx s
 
 let print ctx =
     ctx.separator <- false;
-    Printf.kprintf (fun s -> Buffer.add_string ctx.buf s)
+    Printf.kprintf (fun s -> write ctx s)
 
 let newline ctx = print ctx "\n%s" ctx.tabs
 
@@ -154,7 +160,7 @@ let newline ctx = print ctx "\n%s" ctx.tabs
 let println ctx =
     ctx.separator <- false;
     Printf.kprintf (fun s -> begin
-            Buffer.add_string ctx.buf s;
+            write ctx s;
             newline ctx
         end)
 
@@ -619,6 +625,7 @@ and check_multireturn_param ctx t pos =
                 ();
 
 and gen_expr ?(local=true) ctx e = begin
+    Option.may (fun smap -> smap#insert (SMPos e.epos)) ctx.sourcemap;
     match e.eexpr with
       TConst c ->
         gen_constant ctx e.epos c;
@@ -1807,6 +1814,7 @@ let alloc_ctx com =
         com = com;
         buf = Buffer.create 16000;
         packages = Hashtbl.create 0;
+        sourcemap = None;
         statics = [];
         inits = [];
         current = null_class;
@@ -1910,6 +1918,9 @@ let transform_multireturn ctx = function
 
 let generate com =
     let ctx = alloc_ctx com in
+
+    if Common.defined com Define.SourceMap then
+        ctx.sourcemap <- Some (new sourcemap_builder com.file);
 
     Codegen.map_source_header com (fun s -> print ctx "-- %s\n" s);
 
@@ -2110,5 +2121,8 @@ let generate com =
 
     let ch = open_out_bin com.file in
     output_string ch (Buffer.contents ctx.buf);
-    close_out ch
+    close_out ch;
 
+    match ctx.sourcemap with
+        | Some smap -> smap#generate ctx.com;
+        | None -> ()
