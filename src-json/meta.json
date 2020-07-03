@@ -632,6 +632,12 @@
 		"platforms": ["lua"]
 	},
 	{
+		"name": "LuaColonMethod",
+		"metadata": ":luaColonMethod",
+		"doc": "Indicates that the given extern type should have colon-style invocation for methods instead of dot.",
+		"platforms": ["lua"]
+	},
+	{
 		"name": "Keep",
 		"metadata": ":keep",
 		"doc": "Causes a field or type to be kept by DCE.",

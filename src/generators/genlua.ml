@@ -693,7 +693,10 @@ and gen_expr ?(local=true) ctx e = begin
     | TField (x,f) ->
         gen_value ctx x;
         let name = field_name f in
-        spr ctx (match f with FStatic _ | FEnum _ | FInstance _ | FAnon _ | FDynamic _ | FClosure _ -> field name)
+        spr ctx (match f with 
+            | FStatic (c, _) -> 
+                if Meta.has Meta.LuaColonMethod c.cl_meta then ":" ^ name else field name
+            | FEnum _ | FInstance _ | FAnon _ | FDynamic _ | FClosure _ -> field name)
     | TTypeExpr t ->
         spr ctx (ctx.type_accessor t)
     | TParenthesis e ->
@@ -1768,6 +1771,8 @@ let generate_type ctx = function
             ()
         else if (not c.cl_extern) && Meta.has Meta.LuaDotMethod c.cl_meta then
             error "LuaDotMethod is valid for externs only" c.cl_pos
+        else if (not c.cl_extern) && Meta.has Meta.LuaColonMethod c.cl_meta then
+            error "LuaColonMethod is valid for externs only" c.cl_pos
         else if not c.cl_extern then
             generate_class ctx c;
         check_multireturn ctx c;
